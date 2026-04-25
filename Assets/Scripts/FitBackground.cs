@@ -2,11 +2,23 @@ using UnityEngine;
 
 public class FitBackground : MonoBehaviour
 {
-    [Range(1f, 3f)]
-    public float zoomFactor = 1f;
-
-    void Update()
+    void Start()
     {
-        transform.localScale = new Vector3(zoomFactor, zoomFactor, 1f);
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (sr == null) return;
+
+        float worldHeight = Camera.main.orthographicSize * 2f;
+        float worldWidth = worldHeight * Camera.main.aspect;
+
+        float spriteHeight = sr.sprite.bounds.size.y;
+        float spriteWidth = sr.sprite.bounds.size.x;
+
+        transform.localScale = new Vector3(
+            worldWidth / spriteWidth,
+            worldHeight / spriteHeight,
+            1f
+        );
+
+        transform.position = new Vector3(0, 0, 0);
     }
 }
