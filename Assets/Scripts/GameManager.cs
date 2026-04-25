@@ -21,6 +21,12 @@ public TMP_Text resultText;
     public float recipeShowSeconds = 10f;
     public float shakeSeconds = 3f;
     public float bartenderFlashSeconds = 0.2f;
+    [Tooltip("Vertical jiggle (local Y), in world units.")]
+    public float shakeJiggleAmplitude = 0.12f;
+    [Tooltip("How fast the bartender bobs up and down (cycles per second).")]
+    public float shakeJiggleFrequency = 9f;
+    [Tooltip("How fast the sprite mirrors left/right (approx. flips per second).")]
+    public float shakeHorizontalFlipFrequency = 8f;
 
     private IInputSource inputSource;
 
@@ -33,6 +39,9 @@ public TMP_Text resultText;
     private bool recipeVisible;
     private bool isShaking;
     private Color bartenderBaseColor;
+    private Vector3 bartenderBaseLocalPos;
+    private Vector3 bartenderBaseLocalScale;
+    private bool bartenderPoseCached;
 
     private void Awake()
     {
@@ -40,7 +49,12 @@ public TMP_Text resultText;
             inputSource = inputSourceBehaviour as IInputSource;
 
         if (bartenderRenderer != null)
+        {
             bartenderBaseColor = bartenderRenderer.color;
+            bartenderBaseLocalPos = bartenderRenderer.transform.localPosition;
+            bartenderBaseLocalScale = bartenderRenderer.transform.localScale;
+            bartenderPoseCached = true;
+        }
 
         if (resultText != null)
             resultText.text = "";
@@ -89,6 +103,9 @@ public TMP_Text resultText;
 
     private void StartNewLevel()
     {
+        isShaking = false;
+        ResetBartenderPose();
+
         // Clear player drink
         for (int i = 0; i < 6; i++)
             current[i] = 0;
@@ -157,28 +174,49 @@ public TMP_Text resultText;
         bartenderRenderer.color = bartenderBaseColor;
     }
 
+    private void ResetBartenderPose()
+    {
+        if (bartenderRenderer == null) return;
+        if (bartenderPoseCached)
+        {
+            bartenderRenderer.transform.localPosition = bartenderBaseLocalPos;
+            bartenderRenderer.transform.localScale = bartenderBaseLocalScale;
+        }
+        bartenderRenderer.color = bartenderBaseColor;
+    }
+
     private IEnumerator ShakeRoutine()
     {
         isShaking = true;
         if (statusText != null)
             statusText.text = "Shaking...";
 
-        // Bartender “shaking” feedback: pulse color a bit
         float t = 0f;
         while (t < shakeSeconds)
         {
             t += Time.deltaTime;
-            if (bartenderRenderer != null)
+            if (bartenderRenderer != null && bartenderPoseCached)
             {
-                // simple ping-pong brightness
-                float ping = Mathf.PingPong(Time.time * 8f, 1f);
+                Transform tr = bartenderRenderer.transform;
+                float y = Mathf.Sin(t * 2f * Mathf.PI * shakeJiggleFrequency) * shakeJiggleAmplitude;
+                tr.localPosition = bartenderBaseLocalPos + new Vector3(0f, y, 0f);
+                // sign(sin(π f t)) flips f times per second (left/right mirror of the sprite)
+                float flip = Mathf.Sin(t * Mathf.PI * shakeHorizontalFlipFrequency) >= 0f ? 1f : -1f;
+                float absX = Mathf.Abs(bartenderBaseLocalScale.x);
+                tr.localScale = new Vector3(absX * flip, bartenderBaseLocalScale.y, bartenderBaseLocalScale.z);
+
+                float ping = Mathf.PingPong(t * 8f, 1f);
+                bartenderRenderer.color = Color.Lerp(bartenderBaseColor, Color.gray, ping);
+            }
+            else if (bartenderRenderer != null)
+            {
+                float ping = Mathf.PingPong(t * 8f, 1f);
                 bartenderRenderer.color = Color.Lerp(bartenderBaseColor, Color.gray, ping);
             }
             yield return null;
         }
 
-        if (bartenderRenderer != null)
-            bartenderRenderer.color = bartenderBaseColor;
+        ResetBartenderPose();
 
         isShaking = false;
 

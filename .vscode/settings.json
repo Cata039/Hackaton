@@ -56,5 +56,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "Bartender Prototype.sln"
+    "dotnet.defaultSolution": "BARTENDER_GAME.sln"
 }
